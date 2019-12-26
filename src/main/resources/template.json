@@ -1,0 +1,25 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Resources": {
+    "DB": {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "AllocatedStorage" : "20",
+        "DBInstanceClass" : "db.t3.micro",
+        "DBName" : "testPraveen",
+        "Engine" : "MySQL",
+        "MasterUsername" : "admin",
+        "MasterUserPassword" : "praveene",
+        "DBInstanceIdentifier" : "praveendbinstance"
+      }
+    },
+    "DBUserCreation": {
+      "Type" : "AWS::CloudFormation::CustomResource",
+      "Properties": {
+        "ServiceToken" : "arn:aws:lambda:us-east-2:425656909430:function:DBUserCreation"
+      },
+      "DependsOn": "DB",
+      "DeletionPolicy": "Retain"
+    }
+  }
+}
