@@ -49,5 +49,6 @@
     <orderEntry type="library" scope="RUNTIME" name="Maven: com.typesafe.netty:netty-reactive-streams-http:2.0.3" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Maven: com.typesafe.netty:netty-reactive-streams:2.0.3" level="project" />
     <orderEntry type="library" name="Maven: org.json:json:20190722" level="project" />
+    <orderEntry type="library" name="Maven: commons-io:commons-io:2.6" level="project" />
   </component>
 </module>

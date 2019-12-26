@@ -1,6 +1,11 @@
 package lambda;
 
-public class ProvisionRequest {
+import java.io.Serializable;
+
+public class ProvisionRequest implements Serializable {
+
+    private static final long serialVersionUID = -5448141323635972815L;
+
     String allocatedStorage;
     String dBInstanceClass;
     String dBName;

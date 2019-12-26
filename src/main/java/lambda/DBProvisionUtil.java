@@ -2,26 +2,31 @@ package lambda;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import org.apache.commons.io.IOUtils;
 import org.json.JSONObject;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudformation.CloudFormationClient;
 import software.amazon.awssdk.services.cloudformation.model.*;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 
-public class DBProvisionUtil implements RequestHandler<ProvisionRequest, APIGatewayProxyResponseEvent> {
+public class DBProvisionUtil implements RequestStreamHandler {
 
     static final String STACK_NAME = "MySQLCreatorStack2";
 
     @Override
-    public APIGatewayProxyResponseEvent handleRequest(ProvisionRequest requestClass, Context context) {
-        System.out.println("::RequestInput:: "+requestClass);
+    public void handleRequest(InputStream requestInputStream, OutputStream responseStream, Context context) throws IOException{
+
+        StringWriter eventWriter = new StringWriter();
+        IOUtils.copy(requestInputStream, eventWriter, "UTF-8");
+        String inpString = eventWriter.toString();
+        String body = new JSONObject(inpString).getString("body");
+        JSONObject jsonObject = new JSONObject(body);
+        System.out.println("::RequestInput:: "+jsonObject.toString());
 
         CloudFormationClient client = CloudFormationClient.builder()
                 .region(Region.US_EAST_2)
@@ -32,7 +37,7 @@ public class DBProvisionUtil implements RequestHandler<ProvisionRequest, APIGate
         JSONObject templateJSON = new JSONObject(template);
         JSONObject properties = templateJSON.getJSONObject("Resources").getJSONObject("DB").getJSONObject("Properties");
 
-        setInputValuesInToTemplateData(requestClass, properties);
+        setInputValuesInToTemplateData(jsonObject, properties);
 
         String modifiedTemplate = templateJSON.toString();
 
@@ -46,42 +51,38 @@ public class DBProvisionUtil implements RequestHandler<ProvisionRequest, APIGate
 
         client.close();
 
-        APIGatewayProxyResponseEvent responseEvent = new APIGatewayProxyResponseEvent();
-        responseEvent.setBody("test---body");
-        responseEvent.setStatusCode(200);
-
-        ProvisionRespone responseClass = new ProvisionRespone();
-        responseClass.statusCode = 200;
-
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Access-Control-Allow-Origin", "*");
-        responseClass.setHeaders(headers);
-
-        return responseEvent;
+        JSONObject output = new JSONObject();
+        output.put("statusCode", 200);
+        output.put("body", jsonObject.toString());
+        output.put("isBase64Encoded", false);
+        output.put("headers", new HashMap<>());
+        try (Writer w = new OutputStreamWriter(responseStream, "UTF-8")) {
+            w.write(output.toString());
+        }
     }
 
-    private void setInputValuesInToTemplateData(ProvisionRequest requestClass, JSONObject properties) {
-        String allocatedStorage = requestClass.getAllocatedStorage();
+    private void setInputValuesInToTemplateData(JSONObject requestClass, JSONObject properties) {
+        String allocatedStorage = requestClass.optString("allocatedStorage",null);
         if (allocatedStorage != null) {
             properties.put("AllocatedStorage", allocatedStorage);
         }
-        String dbInstanceClass = requestClass.getdBInstanceClass();
+        String dbInstanceClass = requestClass.optString("dBInstanceClass",null);
         if (dbInstanceClass != null) {
             properties.put("DBInstanceClass", dbInstanceClass);
         }
-        String dbName = requestClass.getdBName();
+        String dbName = requestClass.optString("dBName",null);
         if (dbInstanceClass != null) {
             properties.put("DBName", dbName);
         }
-        String engine = requestClass.getEngine();
+        String engine = requestClass.optString("engine",null);
         if (engine != null) {
             properties.put("Engine", engine);
         }
-        String masterUsername = requestClass.getMasterUsername();
+        String masterUsername = requestClass.optString("masterUsername",null);
         if (masterUsername != null) {
             properties.put("MasterUsername", masterUsername);
         }
-        String masterUserPassword = requestClass.getMasterUserPassword();
+        String masterUserPassword = requestClass.optString("masterUserPassword",null);
         if (masterUserPassword != null) {
             properties.put("MasterUserPassword", masterUserPassword);
         }
