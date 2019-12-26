@@ -11,7 +11,9 @@ import software.amazon.awssdk.services.cloudformation.CloudFormationClient;
 import software.amazon.awssdk.services.cloudformation.model.*;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class DBProvisionUtil implements RequestStreamHandler {
@@ -35,18 +37,17 @@ public class DBProvisionUtil implements RequestStreamHandler {
         String template = convertStreamToString(DBProvisionUtil.class.getClassLoader().getResourceAsStream("template.json"));
 
         JSONObject templateJSON = new JSONObject(template);
-        JSONObject properties = templateJSON.getJSONObject("Resources").getJSONObject("DB").getJSONObject("Properties");
-
-        setInputValuesInToTemplateData(jsonObject, properties);
 
         String modifiedTemplate = templateJSON.toString();
 
-        System.out.println("::ModifiedTemplate:: "+modifiedTemplate);
+        List<Parameter> paramsList = replaceTemplateParameters(jsonObject);
 
         CreateStackRequest createRequest = CreateStackRequest.builder()
                 .stackName(STACK_NAME)
                 .templateBody(modifiedTemplate)
+                .parameters(paramsList)
                 .build();
+        System.out.println("::CreateRequest:: "+createRequest);
         client.createStack(createRequest);
 
         client.close();
@@ -61,31 +62,29 @@ public class DBProvisionUtil implements RequestStreamHandler {
         }
     }
 
-    private void setInputValuesInToTemplateData(JSONObject requestClass, JSONObject properties) {
-        String allocatedStorage = requestClass.optString("allocatedStorage",null);
+    private List<Parameter> replaceTemplateParameters(JSONObject jsonObject) {
+        List<Parameter> paramsList = new ArrayList<>();
+        String allocatedStorage = jsonObject.optString("DBAllocatedStorage",null);
         if (allocatedStorage != null) {
-            properties.put("AllocatedStorage", allocatedStorage);
+            paramsList.add(Parameter.builder().parameterKey("DBAllocatedStorage").parameterValue(allocatedStorage).build());
         }
-        String dbInstanceClass = requestClass.optString("dBInstanceClass",null);
+        String dbInstanceClass = jsonObject.optString("DBClass",null);
         if (dbInstanceClass != null) {
-            properties.put("DBInstanceClass", dbInstanceClass);
+            paramsList.add(Parameter.builder().parameterKey("DBClass").parameterValue(dbInstanceClass).build());
         }
-        String dbName = requestClass.optString("dBName",null);
-        if (dbInstanceClass != null) {
-            properties.put("DBName", dbName);
+        String dbName = jsonObject.optString("DBName",null);
+        if (dbName != null) {
+            paramsList.add(Parameter.builder().parameterKey("DBName").parameterValue(dbName).build());
         }
-        String engine = requestClass.optString("engine",null);
-        if (engine != null) {
-            properties.put("Engine", engine);
-        }
-        String masterUsername = requestClass.optString("masterUsername",null);
+        String masterUsername = jsonObject.optString("DBUser",null);
         if (masterUsername != null) {
-            properties.put("MasterUsername", masterUsername);
+            paramsList.add(Parameter.builder().parameterKey("DBUser").parameterValue(masterUsername).build());
         }
-        String masterUserPassword = requestClass.optString("masterUserPassword",null);
+        String masterUserPassword = jsonObject.optString("DBPassword",null);
         if (masterUserPassword != null) {
-            properties.put("MasterUserPassword", masterUserPassword);
+            paramsList.add(Parameter.builder().parameterKey("DBPassword").parameterValue(masterUserPassword).build());
         }
+        return paramsList;
     }
 
     // Convert a stream into a single, newline separated string
