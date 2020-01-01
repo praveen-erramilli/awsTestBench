@@ -2,12 +2,12 @@
   "AWSTemplateFormatVersion": "2010-09-09",
   "Parameters": {
     "DBAllocatedStorage": {
-      "Default": "5",
+      "Default": "20",
       "Description": "The size of the database (GB)",
       "Type": "Number",
-      "MinValue": "5",
-      "MaxValue": "1024",
-      "ConstraintDescription": "must be between 5 and 1024 GB."
+      "MinValue": "20",
+      "MaxValue": "20",
+      "ConstraintDescription": "must be between 20 and 20 GB."
     },
     "DBClass": {
       "Description": "Database instance class",
@@ -112,8 +112,7 @@
         },
         "DBInstanceIdentifier": {
           "Ref": "DBInstanceId"
-        },
-        "BackupRetentionPeriod": 0
+        }
       }
     },
     "StepFunctionNotifier": {
