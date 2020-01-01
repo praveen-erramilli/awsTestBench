@@ -1,9 +1,7 @@
 package lambda;
 
 import com.amazonaws.services.lambda.runtime.Context;
-import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
-import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONObject;
 import software.amazon.awssdk.regions.Region;
@@ -12,22 +10,16 @@ import software.amazon.awssdk.services.cloudformation.model.*;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class DBProvisionUtil implements RequestStreamHandler {
 
-    static final String STACK_NAME = "MySQLCreatorStack2";
+    static final String STACK_NAME = "MySQLCreatorStack";
 
     @Override
     public void handleRequest(InputStream requestInputStream, OutputStream responseStream, Context context) throws IOException{
 
-        StringWriter eventWriter = new StringWriter();
-        IOUtils.copy(requestInputStream, eventWriter, "UTF-8");
-        String inpString = eventWriter.toString();
-        String body = new JSONObject(inpString).getString("body");
-        JSONObject jsonObject = new JSONObject(body);
+        JSONObject jsonObject = getInputJSONData(requestInputStream);
         System.out.println("::RequestInput:: "+jsonObject.toString());
 
         CloudFormationClient client = CloudFormationClient.builder()
@@ -40,29 +32,38 @@ public class DBProvisionUtil implements RequestStreamHandler {
 
         String modifiedTemplate = templateJSON.toString();
 
-        List<Parameter> paramsList = replaceTemplateParameters(jsonObject);
+        JSONObject input = jsonObject.getJSONObject("input");
+        List<Parameter> paramsList = getTemplateParameters(input);
+
+        JSONObject resourceProperties = new JSONObject();
+        resourceProperties.put("MasterUsername", input.optString("DBUser", "admin"));
+        resourceProperties.put("MasterUserPassword", input.optString("DBPassword", "praveene"));
+        resourceProperties.put("DBInstanceIdentifier", "praveendbinstance");
+
+        paramsList.add(Parameter.builder().parameterKey("Token").parameterValue(jsonObject.getString("token")).build());
+        paramsList.add(Parameter.builder().parameterKey("Output").parameterValue(resourceProperties.toString()).build());
 
         CreateStackRequest createRequest = CreateStackRequest.builder()
                 .stackName(STACK_NAME)
                 .templateBody(modifiedTemplate)
                 .parameters(paramsList)
                 .build();
-        System.out.println("::CreateRequest:: "+createRequest);
         client.createStack(createRequest);
 
         client.close();
 
-        JSONObject output = new JSONObject();
-        output.put("statusCode", 200);
-        output.put("body", jsonObject.toString());
-        output.put("isBase64Encoded", false);
-        output.put("headers", new HashMap<>());
         try (Writer w = new OutputStreamWriter(responseStream, "UTF-8")) {
-            w.write(output.toString());
+            w.write(jsonObject.toString());
         }
     }
 
-    private List<Parameter> replaceTemplateParameters(JSONObject jsonObject) {
+    static JSONObject getInputJSONData(InputStream requestInputStream) throws IOException {
+        StringWriter eventWriter = new StringWriter();
+        IOUtils.copy(requestInputStream, eventWriter, "UTF-8");
+        return new JSONObject(eventWriter.toString());
+    }
+
+    private List<Parameter> getTemplateParameters(JSONObject jsonObject) {
         List<Parameter> paramsList = new ArrayList<>();
         String allocatedStorage = jsonObject.optString("DBAllocatedStorage",null);
         if (allocatedStorage != null) {
