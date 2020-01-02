@@ -112,7 +112,8 @@
         },
         "DBInstanceIdentifier": {
           "Ref": "DBInstanceId"
-        }
+        },
+        "StorageType": "gp2"
       }
     },
     "StepFunctionNotifier": {
